@@ -6,7 +6,8 @@
 
 import Foundation
 
-/// Represents a system sound with predefined raw values for playback.
+/// Enumeration defining the system sounds available for playback. Each case represents a
+/// system sound file that can be played using the `AudioManager`.
 public enum SystemSound: String {
     
     // Modern sounds

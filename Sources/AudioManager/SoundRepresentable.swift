@@ -6,19 +6,27 @@
 
 import Foundation
 
-/// Protocol defining requirements for objects that represent sound files.
-/// Conforming types must provide a sound file's name and extension.
+/// Protocol defining requirements for objects that represent sound files. Conforming types
+/// must provide a sound file's name and extension.
 public protocol SoundRepresentable {
-
-    /// A tuple containing the name and extension of a sound file.
-    var soundFile: (name: String, extension: AudioFileExtension) { get }
+    
+    /// The sound file associated with the sound.
+    var soundFile: SoundFile { get }
 }
+
+/// Represents a custom sound file with a name and file extension.
+/// This struct is used by `SoundRepresentable` conforming types to specify sound files.
+public struct SoundFile {
+    
+    /// The name of the sound file.
+    let name: String
+    
+    /// The file extension of the sound file.
+    let `extension`: AudioFileExtension
+}
+
 
 /// Enum representing supported audio file extensions.
 public enum AudioFileExtension: String {
-    case wav
-    case mp3
-    case aif
-    case caf
-    case m4a
+    case wav, mp3, aif, caf, m4a
 }

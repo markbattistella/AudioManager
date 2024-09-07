@@ -11,11 +11,11 @@ import DefaultsKit
 ///
 /// Conforming to `UserDefaultsKeyRepresentable` allows these keys to be easily used
 /// with UserDefaults for storing and retrieving values.
-public enum UserDefaultKeys: String, UserDefaultsKeyRepresentable {
-
-    /// The raw value of the enum case is used as the key's value.
-    public var value: String { self.rawValue }
-
+public enum AudioUserDefaultKeys: String, UserDefaultsKeyRepresentable {
+    
     /// Key for the user's preference on whether audio effects are enabled.
-    case settingsAudioEffectsEnabled
+    case audioEffectsEnabled
+    
+    /// Key for the user's preference on whether logging is enabled for audio actions.
+    case audioLoggingEnabled
 }

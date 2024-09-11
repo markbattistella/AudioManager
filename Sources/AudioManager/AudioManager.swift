@@ -6,6 +6,13 @@
 
 import Foundation
 import AVFoundation
+import OSLog
+import SimpleLogger
+
+/// Extension to `LoggerCategory` to add a custom category for package audio management.
+extension LoggerCategory {
+    internal static let packageAudioManager = LoggerCategory("PackageAudioManager")
+}
 
 /// A singleton class responsible for managing audio playback throughout the app.
 /// This class provides methods to play both system and custom sounds based on user preferences
@@ -32,11 +39,12 @@ internal final class AudioManager {
     /// A public read-only property indicating whether audio effects are enabled app-wide.
     /// This value is accessed through a synchronized queue to ensure thread safety.
     internal var appWideEnabled: Bool {
-        settingsQueue.sync {
-            _appWideEnabled
-        }
+        settingsQueue.sync { _appWideEnabled }
     }
-    
+
+    /// A logger instance dedicated to audio to handle and filter log outputs.
+    private let logger = Logger(category: .packageAudioManager)
+
     /// Private initializer for singleton use.
     /// Sets the default audio settings and initializes the observer for `UserDefaults` changes.
     private init() {
@@ -144,7 +152,7 @@ extension AudioManager {
     /// Only logs messages if logging is enabled in the settings.
     private func log(_ message: String) {
         if settings.isLoggingEnabled {
-            print(message)
+            logger.log("\(message, privacy: .public)")
         }
     }
 }

@@ -4,7 +4,6 @@
 // Website: https://markbattistella.com
 //
 
-import Foundation
 import AVFoundation
 import OSLog
 import SimpleLogger
@@ -19,23 +18,26 @@ extension LoggerCategory {
 /// stored in `UserDefaults`. The audio settings include enabling or disabling audio effects
 /// and logging for debug purposes.
 internal final class AudioManager {
-    
+
     /// The shared instance of `AudioManager` for app-wide use.
     internal static let shared = AudioManager()
-    
+
+    /// Returns the shared defaults object.
+    private let defaults = UserDefaults.standard
+
     /// A private property that tracks whether audio effects are enabled app-wide,
     /// managed with thread safety.
     private var _appWideEnabled: Bool {
         didSet { log("Audio settings changed: appWideEnabled is now \(_appWideEnabled)") }
     }
-    
+
     /// A private queue used to synchronize access to `_appWideEnabled` to ensure thread safety.
     private let settingsQueue = DispatchQueue(label: "com.markbattistella.audioManager")
-    
+
     /// The current audio settings object, which determines if audio effects and logging are
     /// enabled.
     private var settings: AudioSettings
-    
+
     /// A public read-only property indicating whether audio effects are enabled app-wide.
     /// This value is accessed through a synchronized queue to ensure thread safety.
     internal var appWideEnabled: Bool {
@@ -45,42 +47,92 @@ internal final class AudioManager {
     /// A logger instance dedicated to audio to handle and filter log outputs.
     private let logger = Logger(category: .packageAudioManager)
 
+    /// The count of log attempts, retrieved from UserDefaults.
+    private var logAttemptCount: Int {
+        get { defaults.integer(for: AudioUserDefaultKeys.audioLogAttemptCount) }
+        set { defaults.set(newValue, for: AudioUserDefaultKeys.audioLogAttemptCount) }
+    }
+
+    /// The last time a log was made, retrieved from UserDefaults.
+    private var lastLogTime: Date {
+        get { defaults.date(for: AudioUserDefaultKeys.audioLogLastLogDate) ?? .now }
+        set { defaults.set(newValue, for: AudioUserDefaultKeys.audioLogLastLogDate) }
+    }
+
+    /// The threshold for log attempts before logging again, retrieved from settings.
+    private var logThreshold: Int {
+        settings.loggingThreshold
+    }
+
+    /// The cooldown period in seconds before allowing another log, retrieved from settings.
+    private var logCooldown: TimeInterval {
+        settings.loggingCooldown
+    }
+
+    // MARK: - Initializers
+
     /// Private initializer for singleton use.
     /// Sets the default audio settings and initializes the observer for `UserDefaults` changes.
     private init() {
-        self.settings = UserDefaultsAudioSettings(
+        self.settings = AudioUserDefaultsSettings(
             audioEnabledKey: AudioUserDefaultKeys.audioEffectsEnabled,
-            loggingEnabledKey: AudioUserDefaultKeys.audioLoggingEnabled
+            audioLoggingEnabledKey: AudioUserDefaultKeys.audioLoggingEnabled,
+            audioLoggingThresholdKey: AudioUserDefaultKeys.audioLogThreshold,
+            audioLoggingCooldownKey: AudioUserDefaultKeys.audioLogCooldown
         )
         self._appWideEnabled = settings.isEnabled
         observeUserDefaultsChanges()
+    }
+
+    /// Deinitializes the `AudioManager`, removing any observers to prevent memory leaks.
+    deinit {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
     }
 }
 
 // MARK: - Setup methods
 
 extension AudioManager {
-    
-    /// Sets up an observer to listen for changes in `UserDefaults` that affect the app's audio
-    /// settings. Updates the `_appWideEnabled` property when changes are detected.
+
+    /// Sets up observation of changes to user defaults to update the `appWideEnabled` property.
+    ///
+    /// Observes `UserDefaults.didChangeNotification` on a background queue to respond to changes
+    /// in user preferences for audio feedback.
     private func observeUserDefaultsChanges() {
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
-        ) { [weak self] notification in
-            guard let self = self else { return }
-            self.settingsQueue.async {
-                self._appWideEnabled = self.settings.isEnabled
-            }
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: OperationQueue()
+        ) { [weak self] _ in
+            self?.updateAppWideEnabled()
         }
     }
-    
-    /// Method to set a custom `AudioSettings` for testing or other purposes.
-    /// - Parameter customSettings: An object conforming to `AudioSettings` protocol
-    ///   that allows customization of audio settings like enabling/disabling effects and logging.
+
+    /// Updates the `appWideEnabled` property based on the current settings in a thread-safe
+    /// manner.
+    ///
+    /// This method ensures that changes to the audio settings are reflected immediately
+    /// across the application when user preferences are updated.
+    private func updateAppWideEnabled() {
+        settingsQueue.async(flags: .barrier) {
+            self._appWideEnabled = self.settings.isEnabled
+            self.resetLogTrackingIfAudioEnabled()
+        }
+    }
+
+    /// Sets custom audio settings for the manager, allowing for testing or alternative
+    /// configurations.
+    ///
+    /// - Parameter customSettings: A custom implementation of `AudioSettings`.
     internal func setCustomSettings(_ customSettings: AudioSettings) {
-        settingsQueue.sync {
+        settingsQueue.async(flags: .barrier) {
             self.settings = customSettings
             self._appWideEnabled = customSettings.isEnabled
+            self.resetLogTrackingIfAudioEnabled()
         }
     }
 }
@@ -88,7 +140,7 @@ extension AudioManager {
 // MARK: - Playback methods
 
 extension AudioManager {
-    
+
     /// Plays a system sound if app-wide audio effects are enabled.
     /// - Parameter sound: The `SystemSound` to be played.
     internal func play(_ sound: SystemSound) {
@@ -103,7 +155,7 @@ extension AudioManager {
         }
         playSound(url: url)
     }
-    
+
     /// Plays a custom sound if app-wide audio effects are enabled.
     /// - Parameter sound: The `SoundRepresentable` custom sound to be played.
     internal func play(_ sound: SoundRepresentable) {
@@ -113,7 +165,7 @@ extension AudioManager {
         }
         playSoundFile(name: sound.soundFile.name, extension: sound.soundFile.extension.rawValue)
     }
-    
+
     /// Plays an audio file from a given URL.
     /// - Parameter url: The URL of the audio file to play.
     /// Logs errors if the sound ID cannot be created or if the URL is invalid.
@@ -128,7 +180,7 @@ extension AudioManager {
         // Dispose of the sound ID after playback to manage resources
         AudioServicesDisposeSystemSoundID(soundID)
     }
-    
+
     /// Plays an audio file located within the app bundle.
     /// - Parameters:
     ///   - name: The name of the audio file.
@@ -146,13 +198,32 @@ extension AudioManager {
 // MARK: - Helper methods
 
 extension AudioManager {
-    
-    /// Logs messages based on the logging setting.
-    /// - Parameter message: The message to log.
-    /// Only logs messages if logging is enabled in the settings.
-    private func log(_ message: String) {
-        if settings.isLoggingEnabled {
-            logger.log("\(message, privacy: .public)")
+
+    /// Resets log tracking if audio are re-enabled to prevent unnecessary log suppression.
+    private func resetLogTrackingIfAudioEnabled() {
+        if _appWideEnabled {
+            logAttemptCount = 0
+            lastLogTime = Date()
+        }
+    }
+
+    /// Logs messages for debugging purposes if logging is enabled, with suppression logic.
+    ///
+    /// - Parameter message: The message to be logged.
+    private func log(_ message: String, logLimit: Int = Int.max) {
+        logAttemptCount += 1
+        let currentTime = Date()
+
+        // Only log if below the limit for this app session
+        guard logAttemptCount <= logLimit else { return }
+
+        // Log only if the threshold is reached or cooldown period has passed
+        if logAttemptCount >= logThreshold || currentTime.timeIntervalSince(lastLogTime) >= logCooldown {
+            if settings.isLoggingEnabled {
+                logger.log("\(message, privacy: .public)")
+            }
+            logAttemptCount = 0
+            lastLogTime = currentTime
         }
     }
 }
@@ -174,4 +245,3 @@ public func play(_ sound: SystemSound) {
 public func play(_ sound: SoundRepresentable) {
     AudioManager.shared.play(sound)
 }
-

@@ -81,6 +81,7 @@ internal final class AudioManager {
             audioLoggingCooldownKey: AudioUserDefaultKeys.audioLogCooldown
         )
         self._appWideEnabled = settings.isEnabled
+        self.resetLogTrackingIfAudioEnabled()
         observeUserDefaultsChanges()
     }
 
@@ -120,7 +121,6 @@ extension AudioManager {
     private func updateAppWideEnabled() {
         settingsQueue.async(flags: .barrier) {
             self._appWideEnabled = self.settings.isEnabled
-            self.resetLogTrackingIfAudioEnabled()
         }
     }
 
@@ -132,7 +132,6 @@ extension AudioManager {
         settingsQueue.async(flags: .barrier) {
             self.settings = customSettings
             self._appWideEnabled = customSettings.isEnabled
-            self.resetLogTrackingIfAudioEnabled()
         }
     }
 }

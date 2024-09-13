@@ -8,7 +8,7 @@ import Foundation
 
 /// Enumeration defining the system sounds available for playback. Each case represents a
 /// system sound file that can be played using the `AudioManager`.
-public enum SystemSound: String {
+public enum SystemSound: String, Sendable {
     
     // Modern sounds
     case airdropInvite = "Modern/airdrop_invite.caf"

@@ -8,7 +8,7 @@ import Foundation
 
 /// Protocol defining requirements for objects that represent sound files. Conforming types
 /// must provide a sound file's name and extension.
-public protocol SoundRepresentable {
+public protocol SoundRepresentable: Sendable {
     
     /// The sound file associated with the sound.
     var soundFile: SoundFile { get }
@@ -24,7 +24,6 @@ public struct SoundFile {
     /// The file extension of the sound file.
     let `extension`: AudioFileExtension
 }
-
 
 /// Enum representing supported audio file extensions.
 public enum AudioFileExtension: String {

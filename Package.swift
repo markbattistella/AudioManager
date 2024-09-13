@@ -26,7 +26,8 @@ let package = Package(
         .target(
             name: "AudioManager",
             dependencies: ["DefaultsKit", "SimpleLogger"],
-            exclude: []
+            exclude: [],
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         )
     ]
 )

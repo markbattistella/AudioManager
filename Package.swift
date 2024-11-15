@@ -10,7 +10,7 @@ let package = Package(
         .macOS(.v12),
         .tvOS(.v15),
         .watchOS(.v8),
-        .visionOS(.v1)
+        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -19,8 +19,8 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/markbattistella/DefaultsKit", from: "1.0.0"),
-        .package(url: "https://github.com/markbattistella/SimpleLogger", from: "1.0.0")
+        .package(url: "https://github.com/markbattistella/DefaultsKit", from: "2.0.0"),
+        .package(url: "https://github.com/markbattistella/SimpleLogger", from: "1.0.0"),
     ],
     targets: [
         .target(

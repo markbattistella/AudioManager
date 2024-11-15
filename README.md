@@ -1,4 +1,14 @@
+<div align="center">
+
 # AudioManager
+
+![Swift Versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmarkbattistella%2FAudioManager%2Fbadge%3Ftype%3Dswift-versions)
+
+![Platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmarkbattistella%2FAudioManager%2Fbadge%3Ftype%3Dplatforms)
+
+![Licence](https://img.shields.io/badge/Licence-MIT-white?labelColor=blue&style=flat)
+
+</div>
 
 `AudioManager` is a Swift package designed to handle audio playback within your iOS applications. It offers a centralised approach to managing system and custom sounds, based on user preferences stored in `UserDefaults`. The package provides configurable options for enabling/disabling audio effects and logging for debugging purposes.
 

@@ -13,4 +13,7 @@ public enum AudioUserDefaultsKey: String, UserDefaultsKeyRepresentable {
 
     /// A key representing whether audio effects are enabled.
     case audioEffectsEnabled
+
+    /// Default suite name to group all package keys.
+    public static var suiteName: String? { "com.markbattistella.audioManager" }
 }

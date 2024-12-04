@@ -19,15 +19,9 @@ extension UserDefaults {
     /// as extensions or widgets.
     nonisolated(unsafe)
         public static let audio: UserDefaults = {
-            let appGroupIdentifier = "com.markbattistella.audioManager"
-
-            // Attempt to create a UserDefaults instance for the given app group.
-            guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-
-                // Fallback to standard UserDefaults if app group UserDefaults cannot be created.
+            guard let userDefaults = UserDefaults(suiteName: AudioUserDefaultsKey.suiteName) else {
                 return .standard
             }
-
             return userDefaults
         }()
 }

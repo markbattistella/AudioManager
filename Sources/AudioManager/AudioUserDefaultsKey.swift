@@ -16,6 +16,6 @@ public enum AudioUserDefaultsKey: String, UserDefaultsKeyRepresentable {
 
     /// Default suite name to group all package keys.
     public static var suiteName: String? {
-        "com.markbattistella.packages.audioManager.default."
+        "com.markbattistella.packages.audioManager"
     }
 }

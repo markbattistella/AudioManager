@@ -11,16 +11,12 @@ import TriggerKit
 
 extension View {
 
-    /// Adds an audio feedback effect that will be triggered when a state change occurs.
-    ///
-    /// This method is used to add a predefined `AudioFeedbackPerformer.Playback` feedback effect
-    /// to a `View`.
+    /// Adds audio feedback to a view for a static trigger without conditions.
     ///
     /// - Parameters:
-    ///   - feedback: The type of audio feedback to be performed (e.g., system or custom).
-    ///   - trigger: A trigger that will determine when the feedback should be performed. The
-    ///   trigger must conform to `Equatable`.
-    /// - Returns: The modified `View` that provides audio feedback based on the provided trigger.
+    ///   - feedback: The audio feedback to be performed.
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    /// - Returns: A view modified to include audio feedback.
     public func audioFeedback<T: Equatable>(
         _ feedback: AudioFeedbackPerformer<T>.Playback,
         trigger: T
@@ -41,23 +37,18 @@ extension View {
 
 extension View {
 
-    /// Adds an audio feedback effect based on a state change with a specific condition.
-    ///
-    /// This method allows you to add an audio feedback effect to a `View`, which will be performed
-    /// based on the evaluation of a condition between two states.
+    /// Adds audio feedback to a view for a static trigger with a custom condition.
     ///
     /// - Parameters:
-    ///   - feedback: The type of audio feedback to be performed (e.g., system or custom).
-    ///   - trigger: A trigger that will determine when the feedback should be performed. The
-    ///   trigger must conform to `Equatable`.
-    ///   - condition: A closure that takes two parameters of type `T` and returns `true` if
-    ///   feedback should be performed.
-    /// - Returns: The modified `View` that provides audio feedback based on the provided trigger
-    /// and condition.
+    ///   - feedback: The audio feedback to be performed.
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - condition: A closure that determines whether the feedback should be triggered, based
+    ///   on the old and new values of the trigger.
+    /// - Returns: A view modified to include audio feedback with the specified condition.
     public func audioFeedback<T: Equatable>(
         _ feedback: AudioFeedbackPerformer<T>.Playback,
         trigger: T,
-        condition: @escaping (T, T) -> Bool
+        condition: @escaping (_ oldValue: T, _ newValue: T) -> Bool
     ) -> some View {
         self.modifier(
             StateChangeModifier(
@@ -70,35 +61,125 @@ extension View {
             )
         )
     }
+
+    /// Adds audio feedback to a view for a static trigger with a simplified condition.
+    ///
+    /// - Parameters:
+    ///   - feedback: The audio feedback to be performed.
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - condition: A closure that determines whether the feedback should be triggered, based
+    ///   on the new value of the trigger.
+    /// - Returns: A view modified to include audio feedback with the specified condition.
+    public func audioFeedback<T: Equatable>(
+        _ feedback: AudioFeedbackPerformer<T>.Playback,
+        trigger: T,
+        condition: @escaping (_ newValue: T) -> Bool
+    ) -> some View {
+        self.modifier(
+            StateChangeModifier(
+                feedback,
+                trigger: trigger,
+                condition: { _, newValue in
+                    condition(newValue)
+                },
+                actionHandler: { feedback in
+                    AudioFeedbackPerformer<T>.perform(feedback)
+                }
+            )
+        )
+    }
+
+    /// Adds audio feedback to a view for a static trigger with a global condition.
+    ///
+    /// - Parameters:
+    ///   - feedback: The audio feedback to be performed.
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - condition: A closure that determines whether the feedback should be triggered.
+    /// - Returns: A view modified to include audio feedback with the specified condition.
+    public func audioFeedback<T: Equatable>(
+        _ feedback: AudioFeedbackPerformer<T>.Playback,
+        trigger: T,
+        condition: @escaping () -> Bool
+    ) -> some View {
+        self.modifier(
+            StateChangeModifier(
+                feedback,
+                trigger: trigger,
+                condition: { _, _ in condition() },
+                actionHandler: { feedback in
+                    AudioFeedbackPerformer<T>.perform(feedback)
+                }
+            )
+        )
+    }
 }
 
 // MARK: - Dynamic Action
 
 extension View {
 
-    /// Adds an audio feedback effect dynamically determined by state changes.
-    ///
-    /// This method provides a dynamic way to determine the type of audio feedback to perform based
-    /// on the comparison of two states.
+    /// Adds dynamic audio feedback to a view, with a custom feedback generator based on the old
+    /// and new trigger values.
     ///
     /// - Parameters:
-    ///   - trigger: A trigger that will determine when the feedback should be performed. The
-    ///   trigger must conform to `Equatable`.
-    ///   - feedback: A closure that takes two parameters of type `T` and returns an optional
-    ///   `AudioFeedbackPerformer.Playback`. If the result is non-`nil`, the specified audio
-    ///   feedback will be performed.
-    /// - Returns: The modified `View` that provides audio feedback dynamically based on the
-    /// provided trigger and logic in the feedback closure.
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - feedback: A closure that generates the audio feedback based on the old and new values
+    ///   of the trigger.
+    /// - Returns: A view modified to include dynamic audio feedback.
     public func audioFeedback<T: Equatable>(
         trigger: T,
-        feedback: @escaping (
-            T, T
-        ) -> AudioFeedbackPerformer<T>.Playback?
+        feedback: @escaping (_ oldValue: T, _ newValue: T) -> AudioFeedbackPerformer<T>.Playback?
     ) -> some View {
         self.modifier(
             StateChangeModifier(
                 trigger: trigger,
                 dynamicAction: feedback,
+                actionHandler: { feedback in
+                    AudioFeedbackPerformer<T>.perform(feedback)
+                }
+            )
+        )
+    }
+
+    /// Adds dynamic audio feedback to a view, with a custom feedback generator based on the new
+    /// trigger value.
+    ///
+    /// - Parameters:
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - feedback: A closure that generates the audio feedback based on the new value of the
+    ///   trigger.
+    /// - Returns: A view modified to include dynamic audio feedback.
+    public func audioFeedback<T: Equatable>(
+        trigger: T,
+        feedback: @escaping (_ newValue: T) -> AudioFeedbackPerformer<T>.Playback?
+    ) -> some View {
+        self.modifier(
+            StateChangeModifier(
+                trigger: trigger,
+                dynamicAction: { _, newValue in
+                    feedback(newValue)
+                },
+                actionHandler: { feedback in
+                    AudioFeedbackPerformer<T>.perform(feedback)
+                }
+            )
+        )
+    }
+
+    /// Adds dynamic audio feedback to a view, with a global feedback generator.
+    ///
+    /// - Parameters:
+    ///   - trigger: The trigger value that, when changed, invokes the audio feedback.
+    ///   - feedback: A closure that generates the audio feedback regardless of the trigger values.
+    /// - Returns: A view modified to include dynamic audio feedback.
+    public func audioFeedback<T: Equatable>(
+        trigger: T,
+        feedback: @escaping () -> AudioFeedbackPerformer<T>.Playback?
+    ) -> some View {
+        self.modifier(
+            StateChangeModifier(
+                trigger: trigger,
+                dynamicAction: { _, _ in feedback() },
                 actionHandler: { feedback in
                     AudioFeedbackPerformer<T>.perform(feedback)
                 }

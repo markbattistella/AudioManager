@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 MD041 -->
+<!-- markdownlint-disable MD024 MD033 MD041 -->
 <div align="center">
 
 # AudioManager
@@ -58,6 +58,8 @@ Button("isSuccess: \(isSuccess)") {
 
 You can also use a condition to control when the audio feedback should be triggered, allowing for more focused control over when feedback occurs.
 
+#### Old and New Values
+
 ```swift
 enum Phase { case inactive, active, completed }
 
@@ -75,9 +77,43 @@ Button("Update phase") {
 }
 ```
 
+#### New Value Only
+
+```swift
+enum Phase { case inactive, active, completed }
+
+@State private var phase: Phase = .inactive
+
+Button("Update phase") {
+  switch phase {
+    case .inactive: phase = .active
+    case .active: phase = .completed
+    case .completed: phase = .inactive
+  }
+}
+.audioFeedback(.system(.ui(.tink)), trigger: phase) { newValue in
+  newValue == .completed
+}
+```
+
+#### No Parameters
+
+```swift
+@State private var phase: Bool = false
+
+Button("Toggle Phase") {
+  phase.toggle()
+}
+.audioFeedback(.system(.ui(.tink)), trigger: phase) {
+  // Audio feedback triggered
+}
+```
+
 ### Dynamic Action
 
 The dynamic action approach gives you full control over both the type of feedback and the conditions under which it's triggered.
+
+#### Old and New Values
 
 ```swift
 enum LoadingState { case ready, success, failure }
@@ -102,6 +138,48 @@ Button("Update loading state") {
     default:
       return nil
   }
+}
+```
+
+#### New Values Only
+
+```swift
+enum LoadingState { case ready, success, failure }
+
+@State private var loadingState: LoadingState = .ready
+
+Button("Update loading state") {
+  switch loadingState {
+    case .ready: loadingState = .success
+    case .success: loadingState = .failure
+    case .failure: loadingState = .ready
+  }
+}
+.audioFeedback(trigger: loadingState) { newValue in
+  switch newValue {
+    case .success: return .system(.modern(.cameraShutterBurstBegin))
+    case .failure: return .system(.nano(.screenCapture))
+    default: return nil
+  }
+}
+```
+
+#### No Parameters
+
+```swift
+enum LoadingState { case ready, success, failure }
+
+@State private var loadingState: LoadingState = .ready
+
+Button("Update loading state") {
+  switch loadingState {
+    case .ready: loadingState = .success
+    case .success: loadingState = .failure
+    case .failure: loadingState = .ready
+  }
+}
+.audioFeedback(trigger: loadingState) {
+  // Audio feedback triggered
 }
 ```
 

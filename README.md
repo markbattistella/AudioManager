@@ -26,9 +26,9 @@
 Add `AudioManager` to your Swift project using Swift Package Manager.
 
 ```swift
-    dependencies: [
-                   .package(url: "https://github.com/markbattistella/AudioManager", from: "1.0.0")
-                   ]
+dependencies: [
+    .package(url: "https://github.com/markbattistella/AudioManager", from: "1.0.0")
+]
 ```
 
 ## Usage
@@ -45,9 +45,9 @@ There are three ways to trigger audio feedback:
 ### Static Action
 
 ```swift
-    @State private var isSuccess: Bool = false
-    
-    Button("Toggle") { isSuccess.toggle() }
+@State private var isSuccess: Bool = false
+
+Button("Toggle") { isSuccess.toggle() }
     .audioFeedback(.system(.ui(.tock)), trigger: isSuccess)
 ```
 
@@ -56,11 +56,11 @@ There are three ways to trigger audio feedback:
 #### Old and new values
 
 ```swift
-    enum Phase { case inactive, active, completed }
-    
-    @State private var phase: Phase = .inactive
-    
-    Button("Advance") { ... }
+enum Phase { case inactive, active, completed }
+
+@State private var phase: Phase = .inactive
+
+Button("Advance") { ... }
     .audioFeedback(.system(.ui(.tink)), trigger: phase) { oldValue, newValue in
         oldValue != .completed && newValue == .completed
     }
@@ -69,7 +69,7 @@ There are three ways to trigger audio feedback:
 #### New value only
 
 ```swift
-    Button("Advance") { ... }
+Button("Advance") { ... }
     .audioFeedback(.system(.ui(.tink)), trigger: phase) { newValue in
         newValue == .completed
     }
@@ -78,7 +78,7 @@ There are three ways to trigger audio feedback:
 #### No parameters
 
 ```swift
-    Button("Toggle") { phase.toggle() }
+Button("Toggle") { phase.toggle() }
     .audioFeedback(.system(.ui(.tink)), trigger: phase) {
         // fires on every change
     }
@@ -89,17 +89,21 @@ There are three ways to trigger audio feedback:
 #### Old and new values
 
 ```swift
-    enum LoadingState { case ready, success, failure }
-    
-    @State private var loadingState: LoadingState = .ready
-    
-    Button("Advance") { ... }
+enum LoadingState { case ready, success, failure }
+
+@State private var loadingState: LoadingState = .ready
+
+Button("Advance") { ... }
     .audioFeedback(trigger: loadingState) { oldValue, newValue in
         switch (oldValue, newValue) {
-            case (.failure, .ready):   return .system(.modern(.cameraShutterBurstBegin))
-            case (.ready, .success):   return .system(.nano(.screenCapture))
-            case (.success, .failure): return .system(.new(.update))
-            default:                   return nil
+            case (.failure, .ready):
+                return .system(.modern(.cameraShutterBurstBegin))
+            case (.ready, .success):
+                return .system(.nano(.screenCapture))
+            case (.success, .failure):
+                return .system(.new(.update))
+            default:
+                return nil
         }
     }
 ```
@@ -107,12 +111,15 @@ There are three ways to trigger audio feedback:
 #### New value only
 
 ```swift
-    Button("Advance") { ... }
+Button("Advance") { ... }
     .audioFeedback(trigger: loadingState) { newValue in
         switch newValue {
-            case .success: return .system(.modern(.cameraShutterBurstBegin))
-            case .failure: return .system(.nano(.screenCapture))
-            default:       return nil
+            case .success:
+                return .system(.modern(.cameraShutterBurstBegin))
+            case .failure:
+                return .system(.nano(.screenCapture))
+            default:
+                return nil
         }
     }
 ```
@@ -120,7 +127,7 @@ There are three ways to trigger audio feedback:
 #### No parameters
 
 ```swift
-    Button("Advance") { ... }
+Button("Advance") { ... }
     .audioFeedback(trigger: loadingState) {
         return .system(.ui(.tock))
     }
@@ -141,17 +148,17 @@ By default, audio respects the hardware ringer/silent switch — the same behavi
 Set the behaviour via `UserDefaults.audio`:
 
 ```swift
-    // Ringer switch controls playback (default)
-    UserDefaults.audio.set(
-                           AudioPlaybackBehavior.respectRinger.rawValue,
-                           for: AudioUserDefaultsKey.audioPlaybackBehavior
-                           )
-                           
-                           // Volume slider controls playback — ringer switch is ignored
-                           UserDefaults.audio.set(
-                                                  AudioPlaybackBehavior.respectVolume.rawValue,
-                                                  for: AudioUserDefaultsKey.audioPlaybackBehavior
-                                                  )
+// Ringer switch controls playback (default)
+UserDefaults.audio.set(
+    AudioPlaybackBehavior.respectRinger.rawValue,
+    for: AudioUserDefaultsKey.audioPlaybackBehavior
+)
+
+// Volume slider controls playback — ringer switch is ignored
+UserDefaults.audio.set(
+    AudioPlaybackBehavior.respectVolume.rawValue,
+    for: AudioUserDefaultsKey.audioPlaybackBehavior
+)
 ```
 
 The `.respectVolume` session is configured with `.mixWithOthers`, so it will not interrupt music or other audio playing in the background.
@@ -159,7 +166,7 @@ The `.respectVolume` session is configured with `.mixWithOthers`, so it will not
 Read the current behaviour at any time:
 
 ```swift
-    let current = AudioFeedbackPerformer<Never>.playbackBehavior
+let current = AudioFeedbackPerformer<Never>.playbackBehavior
 ```
 
 ## Configuring Audio Settings
@@ -169,23 +176,23 @@ Read the current behaviour at any time:
 Audio effects are **disabled by default**. Enable them on app launch:
 
 ```swift
-    @main
-    struct MyApp: App {
-        
-        init() {
-            UserDefaults.audio.set(true, for: AudioUserDefaultsKey.audioEffectsEnabled)
-        }
-        
-        var body: some Scene {
-            WindowGroup { ContentView() }
-        }
+@main
+struct MyApp: App {
+
+    init() {
+        UserDefaults.audio.set(true, for: AudioUserDefaultsKey.audioEffectsEnabled)
     }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
 ```
 
 Or toggle it in response to a user action, such as a settings screen:
 
 ```swift
-    Toggle("Sound Effects", isOn: $soundEnabled)
+Toggle("Sound Effects", isOn: $soundEnabled)
     .onChange(of: soundEnabled) { _, enabled in
         UserDefaults.audio.set(enabled, for: AudioUserDefaultsKey.audioEffectsEnabled)
     }
@@ -211,17 +218,17 @@ If the built-in system sounds are not sufficient, bring your own audio files usi
 ### 1. Define a conforming type
 
 ```swift
-    enum MySound: CustomSoundRepresentable {
-        case success
-        case failure
-        
-        var soundFile: SoundFile {
-            switch self {
-                case .success: SoundFile(name: "success", extension: .caf)
-                case .failure: SoundFile(name: "failure", extension: .caf)
-            }
+enum MySound: CustomSoundRepresentable {
+    case success
+    case failure
+
+    var soundFile: SoundFile {
+        switch self {
+            case .success: SoundFile(name: "success", extension: .caf)
+            case .failure: SoundFile(name: "failure", extension: .caf)
         }
     }
+}
 ```
 
 ### 2. Add the files to your app target
@@ -231,9 +238,9 @@ Ensure the audio files are included in your app's main bundle.
 ### 3. Use in a view
 
 ```swift
-    @State private var didSave = false
-    
-    Button("Save") { didSave.toggle() }
+@State private var didSave = false
+
+Button("Save") { didSave.toggle() }
     .audioFeedback(.custom(MySound.success), trigger: didSave)
 ```
 
@@ -242,11 +249,11 @@ Ensure the audio files are included in your app's main bundle.
 The repository includes an iOS example app that demonstrates both playback behaviours side by side. Open `AudioManager.xcworkspace` to see the package sources and the example project together in one workspace.
 
 ```text
-    AudioManager/
-    ├── AudioManager.xcworkspace
-    ├── Sources/AudioManager/
-    └── Example/
-    └── AudioManagerExample/
+AudioManager/
+├── AudioManager.xcworkspace
+├── Sources/AudioManager/
+└── Example/
+└── AudioManagerExample/
 ```
 
 The example app has two sections:

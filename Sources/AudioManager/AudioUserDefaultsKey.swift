@@ -11,11 +11,14 @@ import Foundation
 /// Each case corresponds to a specific setting that can be stored and retrieved.
 public enum AudioUserDefaultsKey: String, UserDefaultsKeyRepresentable {
 
-    /// A key representing whether audio effects are enabled.
-    case audioEffectsEnabled
+  /// A key representing whether audio effects are enabled.
+  case audioEffectsEnabled
 
-    /// Default suite name to group all package keys.
-    public static var suiteName: String? {
-        "com.markbattistella.packages.audioManager"
-    }
+  /// A key representing the playback behavior (ringer vs. volume).
+  case audioPlaybackBehavior
+
+  /// Default suite name to group all package keys.
+  public static var suiteName: String? {
+    "com.markbattistella.packages.audioManager"
+  }
 }

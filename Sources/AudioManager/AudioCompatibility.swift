@@ -5,78 +5,83 @@
 //
 
 #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
-import AVFAudio
+  import AVFAudio
 #endif
 
 #if os(macOS)
-import CoreAudio
+  import CoreAudio
 #endif
 
 /// An enumeration that provides compatibility methods and properties for audio playback
 /// across different Apple platforms.
 internal enum AudioCompatibility {
 
-    /// A Boolean property that determines whether the current platform can play audio.
-    ///
-    /// - Returns: `true` if the platform supports audio playback and an audio output is
-    /// available, `false` otherwise.
-    /// - Platform-specific behavior:
-    ///   - **iOS, tvOS, macCatalyst, visionOS**:
-    ///     Uses `AVAudioSession` to configure and check the audio output route.
-    ///   - **macOS**:
-    ///     Queries the Core Audio API to check for the default output device.
-    ///   - **Other Platforms**:
-    ///     Returns `false` as audio compatibility is not supported.
-    ///
-    /// The implementation ensures that the audio session is correctly configured and activated
-    /// on applicable platforms. On macOS, it verifies that the system's default audio output device
-    /// is available and valid.
-    internal static var canPlayAudio: Bool {
+  /// Whether the current platform has audio output hardware available.
+  ///
+  /// On iOS/tvOS/visionOS/macCatalyst, checks that the current audio route has at least one
+  /// output. On macOS, queries Core Audio for a valid default output device.
+  internal static var canPlayAudio: Bool {
 
-        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
+    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
 
-        // Use AVAudioSession to check audio output capabilities.
-        let audioSession = AVAudioSession.sharedInstance()
-        do {
-            try audioSession.setCategory(.ambient, options: [])
-            try audioSession.setActive(true)
-        } catch {
-            return false
-        }
+      // These devices always have audio hardware (speaker, earpiece, or headphones).
+      // currentRoute.outputs is empty until a session is active, so checking it produces
+      // a false negative on a fresh launch — hardware presence is guaranteed by the platform.
+      return true
 
-        // Ensure there is at least one audio output route available.
-        let currentRoute = audioSession.currentRoute
-        return !currentRoute.outputs.isEmpty
+    #elseif os(macOS)
 
-        #elseif os(macOS)
+      let defaultOutputDeviceID = AudioObjectID(kAudioObjectSystemObject)
+      var propertyAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain
+      )
 
-        // Query Core Audio to check for a valid default output device.
-        let defaultOutputDeviceID = AudioObjectID(kAudioObjectSystemObject)
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
+      var deviceID: AudioObjectID = 0
+      var propertySize = UInt32(MemoryLayout<AudioObjectID>.size)
+      let status = AudioObjectGetPropertyData(
+        defaultOutputDeviceID,
+        &propertyAddress,
+        0,
+        nil,
+        &propertySize,
+        &deviceID
+      )
 
-        var deviceID: AudioObjectID = 0
-        var propertySize = UInt32(MemoryLayout<AudioObjectID>.size)
-        let status = AudioObjectGetPropertyData(
-            defaultOutputDeviceID,
-            &propertyAddress,
-            0,
-            nil,
-            &propertySize,
-            &deviceID
-        )
+      return status == noErr && deviceID != 0
 
-        // Return true if the default output device is valid and the status is successful.
-        return status == noErr && deviceID != 0
+    #else
 
-        #else
+      return false
 
-        // Return false for unsupported platforms.
-        return false
+    #endif
+  }
 
-        #endif
-    }
+  /// The current output volume, in the range 0.0–1.0.
+  ///
+  /// On iOS/tvOS/visionOS/macCatalyst, reads `AVAudioSession.outputVolume`. On other platforms,
+  /// returns 1.0 (assume full volume — no ringer concept on those platforms).
+  internal static var outputVolume: Float {
+    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
+      return AVAudioSession.sharedInstance().outputVolume
+    #else
+      return 1.0
+    #endif
+  }
+
+  /// Configures the shared `AVAudioSession` for the given playback behavior.
+  ///
+  /// - `.respectRinger`: leaves the session unconfigured so `AudioServicesPlaySystemSound`
+  ///   can use its native silent-switch-aware path.
+  /// - `.respectVolume`: activates a `.playback` session with `.mixWithOthers` so audio plays
+  ///   even when the ringer switch is off, without interrupting other app audio.
+  internal static func configureSession(for behavior: AudioPlaybackBehavior) {
+    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
+      guard behavior == .respectVolume else { return }
+      let session = AVAudioSession.sharedInstance()
+      try? session.setCategory(.playback, options: [.mixWithOthers])
+      try? session.setActive(true)
+    #endif
+  }
 }

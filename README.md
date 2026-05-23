@@ -15,260 +15,255 @@
 
 ## Features
 
-- **Custom Audio:** Easily define and trigger audio feedback.
-- **SwiftUI Extensions:** Add audio feedback to SwiftUI views in a declarative way.
-- **User Preferences:** Enable or disable audio feedback based on user settings through simple configuration.
-- **Custom Audio Patterns:** Extend and create your own audio feedback.
+- **SwiftUI Extensions:** Add audio feedback to views declaratively via `.audioFeedback(...)`.
+- **System Sounds:** Play built-in iOS system sounds via `SystemSound`.
+- **Custom Audio:** Bring your own audio files using `CustomSoundRepresentable`.
+- **Playback Behaviour:** Choose whether audio respects the ringer/silent switch or the device volume level.
+- **User Preferences:** Enable or disable audio feedback globally through a simple `UserDefaults` key.
 
 ## Installation
 
 Add `AudioManager` to your Swift project using Swift Package Manager.
 
 ```swift
-dependencies: [
-  .package(url: "https://github.com/markbattistella/AudioManager", from: "1.0.0")
-]
+    dependencies: [
+                   .package(url: "https://github.com/markbattistella/AudioManager", from: "1.0.0")
+                   ]
 ```
 
 ## Usage
 
-There are three type of ways to use the `AudioManager`:
+There are three ways to trigger audio feedback:
 
-- **Static Action:** This is the simplest method, used when you want to trigger audio feedback for a particular state change. It's consistent and straightforward — ideal when the audio feedback needs to occur every time a specific condition (like a state variable changing) is met.
-- **Static Action with Condition:** This approach adds more control compared to the standard static action. Here, you specify a set of conditions to determine when the audio feedback should be triggered. This allows you to handle more nuanced scenarios — such as only playing feedback when transitioning from one specific state to another, while ignoring others.
-- **Dynamic Action:** The most flexible of the three, dynamic actions let you determine the type of audio feedback based on the old and new values during a state change. This means you can implement complex feedback behaviours that respond differently based on how the state transitions, allowing for a more dynamic and tailored user experience.
+- **Static Action:** Triggers on every state change — ideal for consistent feedback.
+- **Static Action with Condition:** Adds a condition closure that gates whether feedback fires.
+- **Dynamic Action:** Derives the sound itself from the old and new trigger values.
 
-> [!NOTE]  
-> Though there is the `.system()` `Playback` call, it is only available on iOS as that is where those in-build sounds live. All other uses can utilise the `.custom()` option.
+> [!NOTE]
+> `.system(SystemSound)` plays files from `/System/Library/Audio/UISounds/`, which are only present on iOS, tvOS, visionOS, and macCatalyst. On macOS, use `.custom(CustomSoundRepresentable)` with your own bundled audio files.
 
 ### Static Action
 
-The static action format allows you to trigger audio feedback consistently and simply. In the example below, audio feedback is triggered whenever the `isSuccess` state changes.
-
 ```swift
-@State private var isSuccess: Bool = false
-
-Button("isSuccess: \(isSuccess)") {
-  isSuccess.toggle()
-}
-.audioFeedback(.system(.ui(.tock)), trigger: isSuccess)
+    @State private var isSuccess: Bool = false
+    
+    Button("Toggle") { isSuccess.toggle() }
+    .audioFeedback(.system(.ui(.tock)), trigger: isSuccess)
 ```
 
 ### Static Action with Condition
 
-You can also use a condition to control when the audio feedback should be triggered, allowing for more focused control over when feedback occurs.
-
-#### Old and New Values
+#### Old and new values
 
 ```swift
-enum Phase { case inactive, active, completed }
-
-@State private var phase: Phase = .inactive
-
-Button("Update phase") {
-  switch phase {
-    case .inactive: phase = .active
-    case .active: phase = .completed
-    case .completed: phase = .inactive
-  }
-}
-.audioFeedback(.system(.ui(.tink)), trigger: phase) { oldValue, newValue in
-  oldValue != .completed && newValue == .completed
-}
+    enum Phase { case inactive, active, completed }
+    
+    @State private var phase: Phase = .inactive
+    
+    Button("Advance") { ... }
+    .audioFeedback(.system(.ui(.tink)), trigger: phase) { oldValue, newValue in
+        oldValue != .completed && newValue == .completed
+    }
 ```
 
-#### New Value Only
+#### New value only
 
 ```swift
-enum Phase { case inactive, active, completed }
-
-@State private var phase: Phase = .inactive
-
-Button("Update phase") {
-  switch phase {
-    case .inactive: phase = .active
-    case .active: phase = .completed
-    case .completed: phase = .inactive
-  }
-}
-.audioFeedback(.system(.ui(.tink)), trigger: phase) { newValue in
-  newValue == .completed
-}
+    Button("Advance") { ... }
+    .audioFeedback(.system(.ui(.tink)), trigger: phase) { newValue in
+        newValue == .completed
+    }
 ```
 
-#### No Parameters
+#### No parameters
 
 ```swift
-@State private var phase: Bool = false
-
-Button("Toggle Phase") {
-  phase.toggle()
-}
-.audioFeedback(.system(.ui(.tink)), trigger: phase) {
-  // Audio feedback triggered
-}
+    Button("Toggle") { phase.toggle() }
+    .audioFeedback(.system(.ui(.tink)), trigger: phase) {
+        // fires on every change
+    }
 ```
 
 ### Dynamic Action
 
-The dynamic action approach gives you full control over both the type of feedback and the conditions under which it's triggered.
-
-#### Old and New Values
+#### Old and new values
 
 ```swift
-enum LoadingState { case ready, success, failure }
-
-@State private var loadingState: LoadingState = .ready
-
-Button("Update loading state") {
-  switch loadingState {
-    case .ready: loadingState = .success
-    case .success: loadingState = .failure
-    case .failure: loadingState = .ready
-  }
-}
-.audioFeedback(trigger: loadingState) { oldValue, newValue in
-  switch (oldValue, newValue) {
-    case (.failure, .ready):
-      return .system(.modern(.cameraShutterBurstBegin))
-    case (.ready, .success):
-      return .system(.nano(.screenCapture))
-    case (.success, .failure):
-      return .system(.new(.update))
-    default:
-      return nil
-  }
-}
-```
-
-#### New Values Only
-
-```swift
-enum LoadingState { case ready, success, failure }
-
-@State private var loadingState: LoadingState = .ready
-
-Button("Update loading state") {
-  switch loadingState {
-    case .ready: loadingState = .success
-    case .success: loadingState = .failure
-    case .failure: loadingState = .ready
-  }
-}
-.audioFeedback(trigger: loadingState) { newValue in
-  switch newValue {
-    case .success: return .system(.modern(.cameraShutterBurstBegin))
-    case .failure: return .system(.nano(.screenCapture))
-    default: return nil
-  }
-}
-```
-
-#### No Parameters
-
-```swift
-enum LoadingState { case ready, success, failure }
-
-@State private var loadingState: LoadingState = .ready
-
-Button("Update loading state") {
-  switch loadingState {
-    case .ready: loadingState = .success
-    case .success: loadingState = .failure
-    case .failure: loadingState = .ready
-  }
-}
-.audioFeedback(trigger: loadingState) {
-  // Audio feedback triggered
-}
-```
-
-### Configuring Audio Settings
-
-`AudioManager` includes a `.audioEffectsEnabled` `UserDefaults` key, allowing you to dynamically enable or disable audio based on user settings.
-
-This is helpful if you want to add a settings screen for toggling audio sound effects, or if you need an overall logic to control audio — for example, making it a premium feature.
-
-#### Built-in UserDefaults Suite
-
-The package uses an internal, publicly exposed `UserDefaults` suite for storing audio-related settings:
-
-```swift
-@main
-struct MyAwesomeApp: App {
-
-  init() {
-    UserDefaults.audio.register([
-      AudioUserDefaultsKey.audioEffectsEnabled : true
-    ])
-  }
-
-  var body: some Scene {
-    WindowGroup { ... }
-  }
-}
-```
-
-Or manually updating it:
-
-```swift
-Button("Turn audio off") {
-  UserDefaults.audio.set(false, for: AudioUserDefaultKeys.isAudioEnabled)
-}
-
-Button("Turn audio on") {
-  UserDefaults.audio.set(true, for: AudioUserDefaultKeys.isAudioEnabled)
-}
-```
-
-> [!IMPORTANT]  
-> Although you can register `UserDefaults` to any suite (`.standard` or custom), the package will only respond to the internal `.audio` suite to prevent unintended clashes across different parts of the application.
-
-## Extending Audio Feedback Types
-
-If the built-in feedback types are not sufficient, you can use your own custom audio files using the `.custom(CustomSoundRepresentable)` `Playback` case.
-
-### Custom File Restrictions
-
-There are a limited accepted audio file extensions allowed: `.aif`, `.aiff`, `.caf`, `.mp3`, and `.wav`.
-
-Also your audio file is limited to `30` seconds. The playback will simply not occur if it is longer than 30 seconds.
-
-### Creating a Custom Feedback
-
-To add a custom audio feedback type:
-
-1. Define a `CustomSoundRepresentable` conforming enum:
-
-```swift
-enum MyCustomSound: CustomSoundRepresentable {
-    case tupperwareFallingOutOfCrampedCupboard
-
-    var soundFile: SoundFile {
-        switch self {
-            case .tupperwareFallingOutOfCrampedCupboard:
-              Soundfile(name: "tupperwareFallingOutOfCrampedCupboard", extension: .aif)
+    enum LoadingState { case ready, success, failure }
+    
+    @State private var loadingState: LoadingState = .ready
+    
+    Button("Advance") { ... }
+    .audioFeedback(trigger: loadingState) { oldValue, newValue in
+        switch (oldValue, newValue) {
+            case (.failure, .ready):   return .system(.modern(.cameraShutterBurstBegin))
+            case (.ready, .success):   return .system(.nano(.screenCapture))
+            case (.success, .failure): return .system(.new(.update))
+            default:                   return nil
         }
     }
-}
 ```
 
-2. Ensure that the filename and extension are correct, and loaded into your app main bundle.
-
-3. Use the custom feedback in your app:
+#### New value only
 
 ```swift
-@State private var isError: Bool = false
-
-Button("Show error") {
-  isError.toggle()
-}
-.audioFeedback(.custom(MyCustomSound.tupperwareFallingOutOfCrampedCupboard), trigger: isError)
+    Button("Advance") { ... }
+    .audioFeedback(trigger: loadingState) { newValue in
+        switch newValue {
+            case .success: return .system(.modern(.cameraShutterBurstBegin))
+            case .failure: return .system(.nano(.screenCapture))
+            default:       return nil
+        }
+    }
 ```
+
+#### No parameters
+
+```swift
+    Button("Advance") { ... }
+    .audioFeedback(trigger: loadingState) {
+        return .system(.ui(.tock))
+    }
+```
+
+## Playback Behaviour
+
+By default, audio respects the hardware ringer/silent switch — the same behaviour as system UI sounds. You can change this globally so audio instead responds to the device volume level, bypassing the ringer switch entirely.
+
+| Behaviour | Plays when… | Engine |
+| --- | --- | --- |
+| `.respectRinger` (default) | Ringer switch is **on** | `AudioServicesPlaySystemSound` |
+| `.respectVolume` | Device volume is **> 0** | `AVAudioPlayer` (`.playback` session) |
+
+> [!NOTE]
+> `AudioPlaybackBehavior` is an iOS/tvOS/visionOS/macCatalyst concept. On macOS there is no ringer switch, so both behaviours fall through to `AudioServicesPlaySystemSound` and behave identically.
+
+Set the behaviour via `UserDefaults.audio`:
+
+```swift
+    // Ringer switch controls playback (default)
+    UserDefaults.audio.set(
+                           AudioPlaybackBehavior.respectRinger.rawValue,
+                           for: AudioUserDefaultsKey.audioPlaybackBehavior
+                           )
+                           
+                           // Volume slider controls playback — ringer switch is ignored
+                           UserDefaults.audio.set(
+                                                  AudioPlaybackBehavior.respectVolume.rawValue,
+                                                  for: AudioUserDefaultsKey.audioPlaybackBehavior
+                                                  )
+```
+
+The `.respectVolume` session is configured with `.mixWithOthers`, so it will not interrupt music or other audio playing in the background.
+
+Read the current behaviour at any time:
+
+```swift
+    let current = AudioFeedbackPerformer<Never>.playbackBehavior
+```
+
+## Configuring Audio Settings
+
+### Enabling audio effects
+
+Audio effects are **disabled by default**. Enable them on app launch:
+
+```swift
+    @main
+    struct MyApp: App {
+        
+        init() {
+            UserDefaults.audio.set(true, for: AudioUserDefaultsKey.audioEffectsEnabled)
+        }
+        
+        var body: some Scene {
+            WindowGroup { ContentView() }
+        }
+    }
+```
+
+Or toggle it in response to a user action, such as a settings screen:
+
+```swift
+    Toggle("Sound Effects", isOn: $soundEnabled)
+    .onChange(of: soundEnabled) { _, enabled in
+        UserDefaults.audio.set(enabled, for: AudioUserDefaultsKey.audioEffectsEnabled)
+    }
+```
+
+> [!IMPORTANT]
+> The package only reads from the internal `.audio` `UserDefaults` suite. Settings written to `.standard` or any other suite are ignored.
+
+### Available keys
+
+| Key | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `audioEffectsEnabled` | `Bool` | `false` | Master on/off for all audio feedback |
+| `audioPlaybackBehavior` | `Int` (raw value) | `0` (`.respectRinger`) | Controls how volume/ringer affects playback |
+
+## Custom Audio
+
+If the built-in system sounds are not sufficient, bring your own audio files using the `.custom(CustomSoundRepresentable)` playback case.
+
+**Supported formats:** `.aif`, `.aiff`, `.caf`, `.mp3`, `.wav`
+**Maximum duration:** 30 seconds
+
+### 1. Define a conforming type
+
+```swift
+    enum MySound: CustomSoundRepresentable {
+        case success
+        case failure
+        
+        var soundFile: SoundFile {
+            switch self {
+                case .success: SoundFile(name: "success", extension: .caf)
+                case .failure: SoundFile(name: "failure", extension: .caf)
+            }
+        }
+    }
+```
+
+### 2. Add the files to your app target
+
+Ensure the audio files are included in your app's main bundle.
+
+### 3. Use in a view
+
+```swift
+    @State private var didSave = false
+    
+    Button("Save") { didSave.toggle() }
+    .audioFeedback(.custom(MySound.success), trigger: didSave)
+```
+
+## Example App
+
+The repository includes an iOS example app that demonstrates both playback behaviours side by side. Open `AudioManager.xcworkspace` to see the package sources and the example project together in one workspace.
+
+```text
+    AudioManager/
+    ├── AudioManager.xcworkspace
+    ├── Sources/AudioManager/
+    └── Example/
+    └── AudioManagerExample/
+```
+
+The example app has two sections:
+
+- **Ringer Mode** — buttons that use `.respectRinger`. Flip the physical silent switch off and the sounds stop, regardless of the volume slider.
+- **Volume Mode** — buttons that use `.respectVolume`. The silent switch is ignored; sounds play when the volume slider is above zero, and the buttons are disabled when it reaches zero.
+
+> [!NOTE]
+> Run the example on a **real device**. The simulator does not have a ringer switch, and volume KVO notifications do not fire reliably in the simulator.
+
+### What is only in the example
+
+`AudioSessionMonitor` is a KVO wrapper around `AVAudioSession.outputVolume` used to keep the volume progress bar in the example UI reactive. It is **not part of the library** and is not needed in a real app. The library reads `outputVolume` on demand at the moment `perform()` is called — no persistent observer is required.
 
 ## Contributing
 
-Contributions are always welcome! Feel free to submit a pull request or open an issue for any suggestions or improvements you have.
+Contributions are always welcome. Feel free to submit a pull request or open an issue for any suggestions or improvements.
 
 ## License
 

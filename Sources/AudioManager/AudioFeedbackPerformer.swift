@@ -23,131 +23,137 @@ public struct AudioFeedbackPerformer<T> where T: Equatable {}
 
 extension AudioFeedbackPerformer: TriggerActionPerformable {
 
-    /// The type of trigger for the action, defined by generic type `T`.
-    public typealias Trigger = T
+  /// The type of trigger for the action, defined by generic type `T`.
+  public typealias Trigger = T
 
-    /// Enum representing different types of playback for audio feedback.
-    public enum Playback {
+  /// Enum representing different types of playback for audio feedback.
+  public enum Playback {
 
-        /// System-defined sounds, available from iOS 13.0 onwards.
-        @available(iOS 13.0, *)
-        case system(SystemSound)
+    /// System-defined sounds, available from iOS 13.0 onwards.
+    @available(iOS 13.0, *)
+    case system(SystemSound)
 
-        /// Custom sound, provided by conforming to `CustomSoundRepresentable`.
-        case custom(CustomSoundRepresentable)
+    /// Custom sound, provided by conforming to `CustomSoundRepresentable`.
+    case custom(CustomSoundRepresentable)
+  }
+
+  /// A flag indicating whether audio feedback is available for use.
+  public static var isAvailable: Bool {
+    AudioFeedbackSettings.isAudioAvailable
+  }
+
+  /// A flag indicating whether audio feedback is currently enabled.
+  public static var isEnabled: Bool {
+    AudioFeedbackSettings.isAudioEnabled
+  }
+
+  /// The current playback behavior — whether audio respects the ringer switch or volume level.
+  public static var playbackBehavior: AudioPlaybackBehavior {
+    AudioFeedbackSettings.playbackBehavior
+  }
+
+  /// Performs the specified playback action if audio feedback is available and enabled.
+  ///
+  /// - Parameter action: The playback action to be performed (`.system` or `.custom`).
+  public static func perform(_ action: Playback) {
+    let behavior = AudioFeedbackSettings.playbackBehavior
+    guard canPerform(for: behavior) else { return }
+
+    switch action {
+    case .system(let systemSound):
+      play(url: systemSound.url, behavior: behavior)
+    case .custom(let customSound):
+      play(url: getURL(for: customSound), behavior: behavior)
     }
-
-    /// A flag indicating whether audio feedback is available for use.
-    public static var isAvailable: Bool {
-        AudioFeedbackSettings.isAudioAvailable
-    }
-
-    /// A flag indicating whether audio feedback is currently enabled.
-    public static var isEnabled: Bool {
-        AudioFeedbackSettings.isAudioEnabled
-    }
-
-    /// Performs the specified playback action if audio feedback is available and enabled.
-    ///
-    /// - Parameter action: The playback action to be performed (`.system` or `.custom`).
-    public static func perform(_ action: Playback) {
-        guard canPerform() else { return }
-
-        switch action {
-            case .system(let systemSound):
-                play(systemSound: systemSound)
-            case .custom(let customSound):
-                play(customSound: customSound)
-        }
-    }
+  }
 }
 
 // MARK: - Helper Methods
 
 extension AudioFeedbackPerformer {
 
-    /// Checks whether audio feedback can currently be performed.
-    ///
-    /// - Returns: `true` if audio feedback is both available and enabled, otherwise `false`.
-    internal static func canPerform() -> Bool {
-        return isAvailable && isEnabled
-    }
+  /// Checks whether audio feedback can currently be performed under the given behavior.
+  internal static func canPerform(for behavior: AudioPlaybackBehavior) -> Bool {
+    guard isAvailable && isEnabled else { return false }
+    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
+      if behavior == .respectVolume {
+        return AudioCompatibility.outputVolume > 0
+      }
+    #endif
+    return true
+  }
+
+  /// Convenience wrapper used by `TriggerActionPerformable` before `perform` is called.
+  internal static func canPerform() -> Bool {
+    canPerform(for: AudioFeedbackSettings.playbackBehavior)
+  }
 }
 
 // MARK: - Package Specific Logic
 
 extension AudioFeedbackPerformer {
 
-    // MARK: Main Methods
+  /// Resolves the URL and routes playback through the appropriate engine for `behavior`.
+  private static func play(url: URL?, behavior: AudioPlaybackBehavior) {
+    guard let url else { return }
 
-    /// Plays a system sound using a given `SystemSound` object.
-    ///
-    /// - Parameter systemSound: The `SystemSound` to play.
-    internal static func play(systemSound: SystemSound) {
-        let systemSoundID = getSystemSoundID(from: systemSound.url)
-        playSound(withID: systemSoundID)
+    AudioCompatibility.configureSession(for: behavior)
+
+    switch behavior {
+    case .respectRinger:
+      // AudioServicesPlaySystemSound natively respects the ringer switch — no extra
+      // session setup needed.
+      let soundID = makeSystemSoundID(from: url)
+      playSystemSound(withID: soundID)
+
+    case .respectVolume:
+      #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
+        // AVAudioPlayer with .playback session bypasses the ringer switch.
+        AudioPlayerCoordinator.shared.play(url: url)
+      #else
+        // macOS has no ringer switch concept; fall back to system sound.
+        let soundID = makeSystemSoundID(from: url)
+        playSystemSound(withID: soundID)
+      #endif
     }
+  }
 
-    /// Plays a custom sound using an object conforming to `CustomSoundRepresentable`.
-    ///
-    /// - Parameter customSound: The `CustomSoundRepresentable` object representing the custom
-    /// sound to be played.
-    internal static func play(customSound: CustomSoundRepresentable) {
-        let customSoundURL = getURL(for: customSound)
-        let customSoundID = getSystemSoundID(from: customSoundURL)
-        playSound(withID: customSoundID)
+  // MARK: AudioServices helpers
+
+  private static func makeSystemSoundID(from url: URL) -> SystemSoundID? {
+    var soundID: SystemSoundID = 0
+    guard AudioServicesCreateSystemSoundID(url as CFURL, &soundID) == noErr else {
+      return nil
     }
+    return soundID
+  }
 
-    // MARK: Helper Methods
+  private static func playSystemSound(withID id: SystemSoundID?) {
+    guard let id else { return }
+    AudioServicesAddSystemSoundCompletion(
+      id,
+      nil,
+      nil,
+      { id, _ in AudioServicesDisposeSystemSoundID(id) },
+      nil
+    )
+    AudioServicesPlaySystemSound(id)
+  }
 
-    /// Gets a system sound ID for a given URL.
-    ///
-    /// - Parameter url: The URL of the sound file.
-    /// - Returns: A `SystemSoundID` if the URL is valid, otherwise `nil`.
-    private static func getSystemSoundID(from url: URL?) -> SystemSoundID? {
-        var systemSoundID: SystemSoundID = 0
-        guard let url else { return nil }
-        guard AudioServicesCreateSystemSoundID(url as CFURL, &systemSoundID) == noErr else {
-            print("Failed to create system sound ID")
-            return nil
-        }
-        return systemSoundID
+  // MARK: Custom sound URL resolution
+
+  private static func getURL(for customSound: CustomSoundRepresentable) -> URL? {
+    guard
+      let audioFilePath = Bundle.main.path(
+        forResource: customSound.soundFile.name,
+        ofType: customSound.soundFile.extension.rawValue
+      )
+    else { return nil }
+
+    if #available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, *) {
+      return URL(filePath: audioFilePath, directoryHint: .notDirectory)
+    } else {
+      return URL(fileURLWithPath: audioFilePath)
     }
-
-    /// Plays a sound given its system sound ID.
-    ///
-    /// - Parameter id: The `SystemSoundID` to be played.
-    private static func playSound(withID id: SystemSoundID?) {
-        guard let id else {
-            print("Invalid system sound ID")
-            return
-        }
-        AudioServicesAddSystemSoundCompletion(
-            id,
-            nil,
-            nil,
-            { id, _ in AudioServicesDisposeSystemSoundID(id) },
-            nil
-        )
-        AudioServicesPlaySystemSound(id)
-    }
-
-    /// Gets a URL for a custom sound provided by an object conforming to `CustomSoundRepresentable`.
-    ///
-    /// - Parameter customSound: The `CustomSoundRepresentable` object representing the custom sound.
-    /// - Returns: The URL for the custom sound file if available, otherwise `nil`.
-    private static func getURL(for customSound: CustomSoundRepresentable) -> URL? {
-        guard
-            let audioFilePath = Bundle.main.path(
-                forResource: customSound.soundFile.name,
-                ofType: customSound.soundFile.extension.rawValue
-            )
-        else { return nil }
-
-        if #available(iOS 16.0, macCatalyst 16.0, macOS 13.0, tvOS 16.0, visionOS 1.0, *) {
-            return URL(filePath: audioFilePath, directoryHint: .notDirectory)
-        } else {
-            return URL(fileURLWithPath: audioFilePath)
-        }
-    }
+  }
 }

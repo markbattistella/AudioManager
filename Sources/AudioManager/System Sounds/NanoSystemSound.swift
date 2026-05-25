@@ -14,7 +14,7 @@ extension SystemSound {
     /// environment, typically associated with small devices. These sounds are often used for
     /// haptic feedback, alerts, and notifications, enhancing the user experience by providing
     /// contextual sound cues.
-    public enum NanoSystemSound: String, SystemSoundRepresentable {
+    public enum NanoSystemSound: String, SystemSoundRepresentable, Sendable {
         
         /// The folder name where the Nano system sounds are stored.
         internal var folderName: String { "nano/" }

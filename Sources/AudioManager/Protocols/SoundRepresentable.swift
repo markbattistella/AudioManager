@@ -18,7 +18,7 @@ public protocol CustomSoundRepresentable: Sendable {
 // MARK: - SoundFile Struct
 
 /// A structure representing a sound file, consisting of a name and an audio file extension.
-public struct SoundFile {
+public struct SoundFile: Sendable {
 
   // MARK: - Properties
 
@@ -48,7 +48,7 @@ public struct SoundFile {
   // MARK: - AudioFileExtension Enum
 
   /// Enum representing supported audio file extensions.
-  public enum AudioFileExtension: String {
+  public enum AudioFileExtension: String, Sendable {
 
     /// Waveform Audio File Format
     case wav

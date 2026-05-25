@@ -8,7 +8,7 @@ import Foundation
 
 /// An enumeration that represents different types of system sounds.
 /// Each case corresponds to a category of sounds available in the system library.
-public enum SystemSound {
+public enum SystemSound: Sendable {
 
   /// Represents modern system sounds.
   case modern(ModernSystemSound)

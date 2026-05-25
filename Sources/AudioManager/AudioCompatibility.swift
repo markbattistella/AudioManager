@@ -75,7 +75,8 @@ internal enum AudioCompatibility {
   /// - `.respectRinger`: leaves the session unconfigured so `AudioServicesPlaySystemSound`
   ///   can use its native silent-switch-aware path.
   /// - `.respectVolume`: activates a `.playback` session with `.mixWithOthers` so audio plays
-  ///   even when the ringer switch is off, without interrupting other app audio.
+  ///   even when the ringer switch is off, without interrupting other app audio. The session
+  ///   remains active because `AVAudioSession` is process-wide.
   internal static func configureSession(for behavior: AudioPlaybackBehavior) {
     #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst) || os(visionOS)
       guard behavior == .respectVolume else { return }

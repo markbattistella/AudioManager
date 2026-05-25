@@ -17,7 +17,7 @@ public enum AudioUserDefaultsKey: String, UserDefaultsKeyRepresentable {
   /// A key representing the playback behavior (ringer vs. volume).
   case audioPlaybackBehavior
 
-  /// Default suite name to group all package keys.
+  /// Default suite name used to group all audio state.
   public static var suiteName: String? {
     "com.markbattistella.packages.audioManager"
   }

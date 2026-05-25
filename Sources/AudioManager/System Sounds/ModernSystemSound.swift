@@ -13,7 +13,7 @@ extension SystemSound {
     /// The `ModernSystemSound` enum defines a series of sound files typically used for system-level
     /// interactions such as camera operations. These sounds can be used to provide the user with
     /// feedback related to common actions.
-    public enum ModernSystemSound: String, SystemSoundRepresentable {
+    public enum ModernSystemSound: String, SystemSoundRepresentable, Sendable {
 
         /// The folder name where the modern system sounds are stored.
         internal var folderName: String { "Modern/" }

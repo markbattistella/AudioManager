@@ -27,9 +27,18 @@ Add `AudioManager` to your Swift project using Swift Package Manager.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/markbattistella/AudioManager", from: "1.0.0")
+    .package(url: "https://github.com/markbattistella/AudioManager", from: "26.0.0")
 ]
 ```
+
+## Requirements
+
+- Swift 6.0+
+- iOS 14+
+- macOS 11+
+- Mac Catalyst 14+
+- tvOS 14+
+- visionOS 1+
 
 ## Usage
 
@@ -161,7 +170,7 @@ UserDefaults.audio.set(
 )
 ```
 
-The `.respectVolume` session is configured with `.mixWithOthers`, so it will not interrupt music or other audio playing in the background.
+The `.respectVolume` session is configured with `.mixWithOthers`, so it will not interrupt music or other audio playing in the background. Because `AVAudioSession` is process-wide, this sets the shared session to `.playback` and leaves it active. If your app owns a custom audio session policy, reapply your preferred category after playback or keep this package in `.respectRinger`.
 
 Read the current behaviour at any time:
 
@@ -274,4 +283,4 @@ Contributions are always welcome. Feel free to submit a pull request or open an 
 
 ## License
 
-`AudioManager` is licensed under the MIT License. See the LICENCE file for more details.
+`AudioManager` is licensed under the MIT License. See the LICENSE file for more details.

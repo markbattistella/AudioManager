@@ -14,7 +14,7 @@ extension SystemSound {
     /// feedback, such as notifications, alerts, and keyboard presses. These sounds enhance the
     /// user experience by providing auditory feedback for different interactions within the
     /// application.
-    public enum UISystemSound: String, SystemSoundRepresentable {
+    public enum UISystemSound: String, SystemSoundRepresentable, Sendable {
         
         /// The folder name where the UI system sounds are stored.
         internal var folderName: String { "" }

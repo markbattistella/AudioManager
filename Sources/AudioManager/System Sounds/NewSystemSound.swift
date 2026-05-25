@@ -13,7 +13,7 @@ extension SystemSound {
     /// The `NewSystemSound` enum defines sound files typically used for new audio interactions
     /// within the system. This enum provides an easy way to reference sound files by name and
     /// retrieve their paths.
-    public enum NewSystemSound: String, SystemSoundRepresentable {
+    public enum NewSystemSound: String, SystemSoundRepresentable, Sendable {
         
         /// The folder name where the new system sounds are stored.
         internal var folderName: String { "New/" }
